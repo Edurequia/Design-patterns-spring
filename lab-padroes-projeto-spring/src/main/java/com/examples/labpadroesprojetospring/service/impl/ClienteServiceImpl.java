@@ -1,5 +1,6 @@
 package com.examples.labpadroesprojetospring.service.impl;
 
+import com.examples.labpadroesprojetospring.exceptions.ClienteNaoEncontradoException;
 import com.examples.labpadroesprojetospring.model.Cliente;
 import com.examples.labpadroesprojetospring.model.Endereco;
 import com.examples.labpadroesprojetospring.repository.ClienteRepository;
@@ -9,6 +10,7 @@ import com.examples.labpadroesprojetospring.service.ViaCepService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.util.Optional;
 
 @Service
@@ -29,7 +31,7 @@ public class ClienteServiceImpl implements ClienteService {
     @Override
     public Cliente buscarPorId(Long id) {
         Optional<Cliente> cliente = clienteRepository.findById(id);
-        return cliente.get();
+        return cliente.orElseThrow(() -> new ClienteNaoEncontradoException("Cliente não encontrado com esse id: " + id));
     }
 
     @Override
@@ -48,11 +50,13 @@ public class ClienteServiceImpl implements ClienteService {
 
     @Override
     public void deletar(Long id) {
+        clienteRepository.findById(id).orElseThrow(() -> new ClienteNaoEncontradoException("Cliente não encontrado com esse id: " + id));
         clienteRepository.deleteById(id);
     }
 
     private void salvarClienteComCep(Cliente cliente) {
         // Verificar se o Endereço do Cliente já existe pelo cep
+        try {
         String cep = cliente.getEndereco().getCep();
         Endereco endereco = enderecoRepository.findById(cep).orElseGet(() -> {
             // Se não tem, ele usa a API ViaCep para persistir o retorno
@@ -63,5 +67,9 @@ public class ClienteServiceImpl implements ClienteService {
         // Salva o cliente com endereço persistido
         cliente.setEndereco(endereco);
         clienteRepository.save(cliente);
+        }
+        catch(RuntimeException e){
+            throw new ClienteNaoEncontradoException("Cliente não foi encontrado");
+        }
     }
 }
